@@ -20,7 +20,7 @@ const player = {
     height: 30,
     speed: 5,
     velocityY: 0,
-    jumping: false,
+    isJumping: false,
     gravity: 0.5,
     jumpStrength: -12
 };
@@ -59,30 +59,29 @@ document.addEventListener('keydown', (e) => {
     if (gameOver) return;
     if (e.key === 'ArrowLeft' && player.x > 0) player.x -= player.speed;
     if (e.key === 'ArrowRight' && player.x < canvas.width - player.width) player.x += player.speed;
-    if (e.key === ' ' && !player.jumping) {
+    if (e.key === ' ' && !player.isJumping) { // Spacebar to jump
         player.velocityY = player.jumpStrength;
-        player.jumping = true;
+        player.isJumping = true;
     }
 });
 
 // Mobile touch controls
-let touchStartX = 0;
 canvas.addEventListener('touchstart', (e) => {
     if (gameOver) return;
-    touchStartX = e.touches[0].clientX;
-    if (!player.jumping) {
+    e.preventDefault();
+    const touchX = e.touches[0].clientX;
+    if (!player.isJumping) { // Tap to jump
         player.velocityY = player.jumpStrength;
-        player.jumping = true;
+        player.isJumping = true;
     }
 });
 canvas.addEventListener('touchmove', (e) => {
     if (gameOver) return;
     e.preventDefault();
     const touchX = e.touches[0].clientX;
-    const deltaX = touchX - touchStartX;
-    if (deltaX > 20 && player.x < canvas.width - player.width) player.x += player.speed;
-    if (deltaX < -20 && player.x > 0) player.x -= player.speed;
-    touchStartX = touchX;
+    const playerCenter = player.x + player.width / 2;
+    if (touchX < playerCenter - 20 && player.x > 0) player.x -= player.speed;
+    if (touchX > playerCenter + 20 && player.x < canvas.width - player.width) player.x += player.speed;
 });
 
 function draw() {
@@ -92,11 +91,10 @@ function draw() {
     ctx.fillStyle = 'red';
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    // Draw obstacles with slight depth effect
+    // Draw obstacles
     obstacles.forEach((obj) => {
-        const scale = 1 - (obj.x / canvas.width) * 0.2; // Slight size reduction for "distance"
         ctx.fillStyle = obj.type === 'tree' ? 'green' : obj.type === 'bear' ? 'brown' : obj.type === 'deer' ? 'tan' : 'gray';
-        ctx.fillRect(obj.x, obj.y, obj.width * scale, obj.height * scale);
+        ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
     });
 
     // Draw collectibles
@@ -118,13 +116,15 @@ function update() {
 
     spawnObject();
 
-    // Player physics
+    // Update player position with gravity
     player.velocityY += player.gravity;
     player.y += player.velocityY;
-    if (player.y > canvas.height - player.height) {
+
+    // Ground collision
+    if (player.y >= canvas.height - player.height) {
         player.y = canvas.height - player.height;
         player.velocityY = 0;
-        player.jumping = false;
+        player.isJumping = false;
     }
 
     // Move objects
@@ -169,7 +169,7 @@ function restartGame() {
     player.x = 100;
     player.y = canvas.height - 50;
     player.velocityY = 0;
-    player.jumping = false;
+    player.isJumping = false;
     scoreDisplay.textContent = 'Score: 0';
     gameOverScreen.style.display = 'none';
     update();
