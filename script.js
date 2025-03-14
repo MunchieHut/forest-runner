@@ -12,13 +12,17 @@ let score = 0;
 let gameSpeed = 5;
 let gameOver = false;
 
-// Player
+// Player with jumping
 const player = {
     x: 100,
     y: canvas.height - 50,
     width: 30,
     height: 30,
-    speed: 5
+    speed: 5,
+    velocityY: 0,
+    jumping: false,
+    gravity: 0.5,
+    jumpStrength: -12
 };
 
 // Obstacles and Collectibles
@@ -50,11 +54,15 @@ function spawnObject() {
     }
 }
 
-// Desktop controls
+// Controls
 document.addEventListener('keydown', (e) => {
     if (gameOver) return;
     if (e.key === 'ArrowLeft' && player.x > 0) player.x -= player.speed;
     if (e.key === 'ArrowRight' && player.x < canvas.width - player.width) player.x += player.speed;
+    if (e.key === ' ' && !player.jumping) {
+        player.velocityY = player.jumpStrength;
+        player.jumping = true;
+    }
 });
 
 // Mobile touch controls
@@ -62,6 +70,10 @@ let touchStartX = 0;
 canvas.addEventListener('touchstart', (e) => {
     if (gameOver) return;
     touchStartX = e.touches[0].clientX;
+    if (!player.jumping) {
+        player.velocityY = player.jumpStrength;
+        player.jumping = true;
+    }
 });
 canvas.addEventListener('touchmove', (e) => {
     if (gameOver) return;
@@ -76,14 +88,15 @@ canvas.addEventListener('touchmove', (e) => {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw player (red rectangle)
+    // Draw player
     ctx.fillStyle = 'red';
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    // Draw obstacles
+    // Draw obstacles with slight depth effect
     obstacles.forEach((obj) => {
+        const scale = 1 - (obj.x / canvas.width) * 0.2; // Slight size reduction for "distance"
         ctx.fillStyle = obj.type === 'tree' ? 'green' : obj.type === 'bear' ? 'brown' : obj.type === 'deer' ? 'tan' : 'gray';
-        ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+        ctx.fillRect(obj.x, obj.y, obj.width * scale, obj.height * scale);
     });
 
     // Draw collectibles
@@ -104,6 +117,15 @@ function update() {
     if (gameOver) return;
 
     spawnObject();
+
+    // Player physics
+    player.velocityY += player.gravity;
+    player.y += player.velocityY;
+    if (player.y > canvas.height - player.height) {
+        player.y = canvas.height - player.height;
+        player.velocityY = 0;
+        player.jumping = false;
+    }
 
     // Move objects
     obstacles.forEach((obj, index) => {
@@ -134,6 +156,7 @@ function update() {
         }
     });
 
+    gameSpeed += 0.005; // Increase difficulty
     requestAnimationFrame(update);
 }
 
@@ -144,10 +167,12 @@ function restartGame() {
     obstacles = [];
     collectibles = [];
     player.x = 100;
+    player.y = canvas.height - 50;
+    player.velocityY = 0;
+    player.jumping = false;
     scoreDisplay.textContent = 'Score: 0';
     gameOverScreen.style.display = 'none';
     update();
 }
 
-// Start the game
 update();
